@@ -1,0 +1,102 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { db, eq } from 'astro:db';
+import { Articles } from '../../db/schema';
+
+// Check if user is logged in and is admin
+const session = await Astro.locals.auth?.validate();
+if (!session?.user?.isAdmin) {
+  return Astro.redirect('/login');
+}
+
+// Get all articles
+const articles = await db.select().from(Articles);
+---
+
+<Layout title="Admin Dashboard">
+  <div class="max-w-4xl mx-auto">
+    <div class="flex justify-between items-center mb-8">
+      <h1 class="text-3xl font-bold">Admin Dashboard</h1>
+      <a
+        href="/admin/articles/new"
+        class="bg-green-700 text-white px-4 py-2 rounded-md hover:bg-green-800"
+      >
+        New Article
+      </a>
+    </div>
+
+    <div class="bg-white rounded-lg shadow">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Title
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Date
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          {articles.map((article) => (
+            <tr>
+              <td class="px-6 py-4">
+                <a href={`/articles/${article.slug}`} class="text-green-700 hover:text-green-800">
+                  {article.title}
+                </a>
+              </td>
+              <td class="px-6 py-4 text-sm text-gray-500">
+                {new Date(article.createdAt).toLocaleDateString()}
+              </td>
+              <td class="px-6 py-4 text-sm">
+                <a
+                  href={`/admin/articles/${article.id}/edit`}
+                  class="text-indigo-600 hover:text-indigo-900 mr-4"
+                >
+                  Edit
+                </a>
+                <button
+                  data-article-id={article.id}
+                  class="text-red-600 hover:text-red-900 delete-article"
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  // Handle article deletion
+  document.querySelectorAll('.delete-article').forEach(button => {
+    button.addEventListener('click', async (e) => {
+      if (!confirm('Are you sure you want to delete this article?')) {
+        return;
+      }
+
+      const articleId = (e.target as HTMLButtonElement).dataset.articleId;
+      
+      try {
+        const response = await fetch(`/api/articles/${articleId}`, {
+          method: 'DELETE'
+        });
+        
+        if (response.ok) {
+          // Remove the table row on successful deletion
+          (e.target as HTMLButtonElement).closest('tr')?.remove();
+        } else {
+          alert('Failed to delete article');
+        }
+      } catch (error) {
+        alert('An error occurred');
+      }
+    });
+  });
+</script>

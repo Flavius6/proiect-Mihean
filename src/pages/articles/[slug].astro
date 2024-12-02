@@ -1,0 +1,44 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { db, eq } from 'astro:db';
+import CommentForm from '../../components/CommentForm.astro';
+
+const { slug } = Astro.params;
+const article = await db.select().from('Articles').where(eq('Articles.slug', slug)).get();
+
+if (!article) {
+  return Astro.redirect('/404');
+}
+
+const comments = await db
+  .select()
+  .from('Comments')
+  .where(eq('Comments.articleId', article.id))
+  .orderBy('createdAt', 'desc');
+---
+
+<Layout title={article.title}>
+  <article class="prose lg:prose-xl mx-auto">
+    <h1>{article.title}</h1>
+    <div class="text-gray-600 mb-8">
+      {new Date(article.createdAt).toLocaleDateString()}
+    </div>
+    <div set:html={article.content} />
+  </article>
+
+  <section class="mt-12 max-w-2xl mx-auto">
+    <h2 class="text-2xl font-bold mb-6">Comments</h2>
+    <CommentForm articleId={article.id} />
+    
+    <div class="mt-8 space-y-4">
+      {comments.map((comment) => (
+        <div class="bg-white p-4 rounded-lg shadow">
+          <p class="text-gray-800">{comment.content}</p>
+          <p class="text-sm text-gray-600 mt-2">
+            By {comment.authorName} on {new Date(comment.createdAt).toLocaleDateString()}
+          </p>
+        </div>
+      ))}
+    </div>
+  </section>
+</Layout>
